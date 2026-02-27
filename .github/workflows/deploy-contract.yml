@@ -1,0 +1,39 @@
+name: Deploy Contract to OP_NET
+
+on:
+  workflow_dispatch: # Cho phép nhấn nút chạy thủ công
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: |
+          # Chạy lệnh trong thư mục chứa contract của bạn
+          cd opnet-meme-dapp
+          npm install
+
+      - name: Build WASM Contracts
+        run: |
+          cd opnet-meme-dapp
+          # Chạy các lệnh build đã thiết lập trong package.json
+          npm run build:factory
+          npm run build:meme
+          npm run build:revenue
+
+      - name: Deploy to OP_NET
+        run: |
+          cd opnet-meme-dapp
+          npx ts-node scripts/deploy.ts
+        env:
+          # GitHub sẽ lấy Key từ phần Secrets bạn đã cài ở bước trước
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          NETWORK: testnet
