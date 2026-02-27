@@ -1,109 +1,125 @@
-# MEMESLOTS — Next.js + OP_NET
-
-dApp meme token trên Bitcoin L1 với kết nối ví thật qua **@btc-vision/walletconnect**.
+# MEMESLOTS — Bitcoin Meme DEX on OP_NET
 
 ---
 
-## 🚀 Chạy local
+## ⚡ QUAN TRỌNG — Tại sao không thấy nút "Run workflow"?
+
+GitHub chỉ hiện nút **Run workflow** khi file workflow được đưa vào repo bằng **git push**, không phải drag & drop.
+
+Làm theo đúng thứ tự bên dưới.
+
+---
+
+## Hướng dẫn từng bước
+
+### Bước 1 — Tạo repo mới trên GitHub
+
+1. Vào https://github.com/new
+2. Đặt tên: `memeslots`
+3. Chọn **Public**
+4. **KHÔNG** tick "Add a README file"
+5. Nhấn **Create repository**
+
+---
+
+### Bước 2 — Upload files (drag & drop)
+
+Sau khi tạo repo, GitHub sẽ hiện trang trống với dòng chữ "uploading an existing file".
+
+1. Giải nén file ZIP bạn tải về
+2. Kéo thả **toàn bộ thư mục `memeslots-repo`** vào trang đó
+3. Nhấn **Commit changes**
+
+---
+
+### Bước 3 — Mở Codespaces (bước quan trọng)
+
+> Bước này bắt buộc để GitHub nhận diện workflow. Codespaces miễn phí 60 giờ/tháng.
+
+1. Trong repo, nhấn nút xanh **`<> Code`**
+2. Tab **Codespaces**
+3. Nhấn **"Create codespace on main"**
+4. Đợi ~30 giây cho terminal mở ra
+5. Paste vào terminal:
 
 ```bash
-# 1. Cài dependencies
-npm install
+bash setup.sh
+```
 
-# 2. Copy env file
-cp .env.local.example .env.local
+Đợi script chạy xong (khoảng 10 giây).
 
-# 3. Điền địa chỉ contract vào .env.local (sau khi deploy)
+---
 
-# 4. Chạy dev server
-npm run dev
-# → http://localhost:3000
+### Bước 4 — Thêm Secret PRIVATE_KEY
+
+1. Vào repo → **Settings** → **Secrets and variables** → **Actions**
+2. Nhấn **New repository secret**
+3. Name: `PRIVATE_KEY`
+4. Value: WIF private key của ví (lấy từ OP_WALLET → Export Private Key)
+5. Nhấn **Add secret**
+
+> Lấy testnet BTC tại: https://testnet.opnet.org/faucet
+
+---
+
+### Bước 5 — Chạy Deploy Factory
+
+1. Vào tab **Actions** trong repo
+2. Bên trái thấy **"Deploy Factory to OP_NET"**
+3. Nhấn vào → nhấn nút **"Run workflow"** bên phải
+4. Chọn `testnet`
+5. Nhấn **"Run workflow"** xanh
+
+GitHub Actions sẽ tự động:
+- ✅ Build WASM từ AssemblyScript contracts
+- ✅ Deploy MemeFactoryV2 lên OP_NET testnet
+- ✅ Cập nhật `FACTORY` address vào `web/index.html`
+- ✅ Commit lại vào repo
+
+---
+
+### Bước 6 — Deploy web lên Vercel
+
+1. Vào https://vercel.com/new
+2. **Import Git Repository** → chọn repo `memeslots`
+3. **Root Directory** → nhấn Edit → nhập `web`
+4. Nhấn **Deploy**
+
+Xong! Vercel tự redeploy mỗi khi factory address được cập nhật.
+
+---
+
+## Cấu trúc repo
+
+```
+memeslots/
+├── .github/workflows/
+│   └── deploy-factory.yml   ← Workflow chính
+├── contracts/               ← Smart contracts (AssemblyScript)
+│   └── assembly/contracts/
+│       ├── MemeFactoryV2.ts
+│       ├── RevenueSharingV2.ts
+│       └── MemeToken.ts
+├── scripts/
+│   └── deploy-factory.mjs   ← Deploy script
+├── web/
+│   ├── index.html           ← Toàn bộ dApp
+│   └── vercel.json
+└── setup.sh                 ← Chạy 1 lần trên Codespaces
 ```
 
 ---
 
-## 📦 Deploy Contracts trước
+## Troubleshooting
 
-Trước khi chạy dApp, cần deploy 3 contracts:
+**Không thấy "Deploy Factory to OP_NET" trong Actions?**
+→ Chưa chạy `bash setup.sh` trong Codespaces. Làm lại Bước 3.
 
-```bash
-# Build contracts
-cd ../opnet-meme-dapp
-npm install
-npm run build:revenue   # → build/RevenueSharingV2.wasm
-npm run build:meme      # → build/MemeToken.wasm
-npm run build:factory   # → build/MemeFactoryV2.wasm
+**Deploy fail: "PRIVATE_KEY is required"?**
+→ Chưa thêm secret. Làm lại Bước 4.
 
-# Deploy lên testnet
-PRIVATE_KEY=your_key npx ts-node scripts/deploy.ts
-```
+**Deploy fail: "Balance quá thấp"?**
+→ Nạp testnet BTC tại https://testnet.opnet.org/faucet
 
-Sau khi deploy xong, copy địa chỉ `MemeFactoryV2` vào `.env.local`:
-```
-NEXT_PUBLIC_FACTORY_ADDRESS=bc1p...
-```
-
----
-
-## 🔑 Cài OP_WALLET
-
-1. Mở Chrome → [Chrome Web Store](https://chromewebstore.google.com/detail/opwallet/pmbjpcmaaladnfpacpmhmnfmpklgbdjb)
-2. Install **OP_WALLET**
-3. Tạo ví → chọn Testnet
-4. Lấy testnet BTC từ faucet: https://testnet.opnet.org/faucet
-
----
-
-## 🏗️ Kiến trúc
-
-```
-src/
-├── app/
-│   ├── page.tsx          ← Explore + Create + My Memes
-│   ├── layout.tsx        ← WalletProvider wrapper
-│   └── meme/[id]/
-│       └── page.tsx      ← Meme detail + Slot grid + Actions
-├── components/
-│   ├── WalletButton.tsx  ← Kết nối OP_WALLET / Unisat
-│   └── SlotGrid.tsx      ← Grid 100 slots
-├── hooks/
-│   └── useOpnetWallet.ts ← Tất cả logic kết nối + contract calls
-└── lib/
-    └── opnet.ts          ← Provider, ABI, config
-```
-
----
-
-## 🔗 SDK đang dùng
-
-| Package | Mục đích |
-|---------|----------|
-| `opnet` | JSONRpcProvider, getContract |
-| `@btc-vision/walletconnect` | WalletProvider, useWallet hook |
-| `@btc-vision/transaction` | Tạo và ký transaction |
-| `@btc-vision/bitcoin` | Network enum (Testnet/Mainnet) |
-
----
-
-## ⚙️ Sau khi deploy contract
-
-Trong `src/app/meme/[id]/page.tsx`, tại hàm `handleDeploy()`:
-- Thay `'MemeToken_WASM_HEX'` bằng hex string của file `.wasm` đã compile
-- Thay `'RevenueSharingV2_WASM_HEX'` tương tự
-
-```ts
-// Đọc wasm file thành hex
-const fs = require('fs');
-const wasm = fs.readFileSync('./build/MemeToken.wasm');
-const hex = wasm.toString('hex');
-```
-
----
-
-## 🌐 Deploy lên Vercel
-
-```bash
-npm run build
-vercel deploy
-# Thêm env vars trong Vercel dashboard
-```
+**Build fail: "Cannot find module"?**
+→ Contracts có thể cần update import path. Mở issue hoặc kiểm tra `contracts/package.json`.
