@@ -1,0 +1,39 @@
+name: Deploy Contract to OP_NET
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: |
+          # Không dùng 'cd' nữa vì file package.json nằm ở gốc
+          npm install
+
+      - name: Build WASM Contracts
+        run: |
+          # Đảm bảo lệnh build khớp với scripts trong package.json của bạn
+          # Nếu chưa có build:factory trong package.json, bước này sẽ lỗi
+          npm run build:factory || echo "Chưa có script build"
+
+      - name: Deploy to OP_NET
+        run: |
+          # Kiểm tra xem file scripts/deploy.ts có tồn tại không
+          if [ -f "scripts/deploy.ts" ]; then
+            npx ts-node scripts/deploy.ts
+          else
+            echo "Không tìm thấy file scripts/deploy.ts"
+          fi
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          NETWORK: testnet
